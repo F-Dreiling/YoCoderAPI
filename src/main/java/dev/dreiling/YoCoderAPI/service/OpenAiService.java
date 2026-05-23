@@ -110,11 +110,12 @@ public class OpenAiService implements LlmProvider {
             systemMsg.put("role", "system");
             systemMsg.put("content",
                     "You are an expert software engineer. " +
-                            "When asked to refactor code, output only the refactored file content " +
-                            "followed by an explanation section starting with ## EXPLANATION. " +
-                            "If asked to keep the code intact, return the file content as is and only generate the explanation section. " +
-                            "In the EXPLANATION, list each point as a separate numbered item on its own line " +
-                            "and use proper line breaks between each point. " +
+                            "When asked to refactor code, output each affected file preceded by a marker on its own line: ##FILE: <relative/path/to/file>. " +
+                            "If only one file needs changes, output just that one file with its ##FILE: marker. " +
+                            "If the instruction requires changes to multiple files, output all of them with their respective ##FILE: markers. " +
+                            "After all files, add a section starting with ## EXPLANATION followed by a numbered list of changes. " +
+                            "If asked to keep the code intact, output the file as-is with its ##FILE: marker and only generate the explanation. " +
+                            "In the EXPLANATION, list each point as a separate numbered item on its own line. " +
                             "Never wrap code in markdown fences unless explicitly asked.");
 
             messages.add(systemMsg);

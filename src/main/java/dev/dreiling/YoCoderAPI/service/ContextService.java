@@ -247,18 +247,29 @@ public class ContextService {
         sb.append("**Instruction:** ").append(req.getPrompt()).append("\n\n");
 
         sb.append("## RULES\n");
-        sb.append("1. Return ONLY valid, complete, runnable code for the refactored file.\n");
-        sb.append("2. Do NOT add any explanation, markdown fences, or commentary in the code output unless specifically asked to.\n");
-        sb.append("3. After the code, add a section starting with exactly the line `## EXPLANATION` followed by a concise bullet-point summary of changes made.\n");
-        sb.append("4. Do not change the public API unless explicitly instructed.\n");
-        sb.append("5. Do not remove existing functionality.\n");
-        sb.append("6. Preserve all existing comments.\n\n");
+        sb.append("1. If only the target file needs changes, output it using the format below and end with ## EXPLANATION.\n");
+        sb.append("2. If the instruction requires changes to OTHER files as well (e.g. a new interface, a config change, a dependency update), output ALL affected files using the same format.\n");
+        sb.append("3. Each file must be preceded by exactly this marker on its own line: ##FILE: <relative/path/to/file>\n");
+        sb.append("4. After all files, add a section starting with exactly the line `## EXPLANATION` followed by a concise numbered list of changes made.\n");
+        sb.append("5. Do NOT add any explanation, markdown fences, or commentary in the code output.\n");
+        sb.append("6. Do not change the public API unless explicitly instructed.\n");
+        sb.append("7. Do not remove existing functionality.\n");
+        sb.append("8. Preserve all existing comments.\n\n");
+
+        sb.append("## OUTPUT FORMAT EXAMPLE\n");
+        sb.append("##FILE: src/main/java/com/example/UserService.java\n");
+        sb.append("<full file content here>\n");
+        sb.append("##FILE: src/main/java/com/example/UserRepository.java\n");
+        sb.append("<full file content here>\n");
+        sb.append("## EXPLANATION\n");
+        sb.append("1. Changed X\n");
+        sb.append("2. Added Y\n\n");
 
         sb.append("## TARGET FILE: `").append(req.getTargetFile()).append("`\n");
         sb.append("```").append(extToLang(fileService.getExtension(req.getTargetFile()))).append("\n");
         sb.append(targetContent).append("\n```\n\n");
 
-        sb.append("Now output the refactored file content, then the `## EXPLANATION` section.");
+        sb.append("Now output all affected files using ##FILE: markers, then the `## EXPLANATION` section.");
 
         return sb.toString();
     }

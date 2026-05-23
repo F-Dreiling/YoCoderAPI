@@ -36,7 +36,7 @@ public class RefactorController {
         return Mono.just(Map.of(
                 "status", "UP",
                 "service", "YoCoderAPI",
-                "version", "1.0"
+                "version", "1.1"
         ));
     }
 

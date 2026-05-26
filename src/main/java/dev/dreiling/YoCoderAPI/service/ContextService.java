@@ -165,7 +165,6 @@ public class ContextService {
             }
 
             // Reverse dependency: candidate content mentions target name
-            // (We check this cheaply via string matching on path — full content check done later if needed)
             String candBaseName = candName.replaceAll("\\.[^.]+$", "");
             if (targetContent.contains(candBaseName)) {
                 score += 15;
@@ -254,7 +253,8 @@ public class ContextService {
         sb.append("5. Do NOT add any explanation, markdown fences, or commentary in the code output.\n");
         sb.append("6. Do not change the public API unless explicitly instructed.\n");
         sb.append("7. Do not remove existing functionality.\n");
-        sb.append("8. Preserve all existing comments.\n\n");
+        sb.append("8. Preserve all existing comments.\n");
+        sb.append("9. Preserve the original indentation.\n\n");
 
         sb.append("## OUTPUT FORMAT EXAMPLE\n");
         sb.append("##FILE: src/main/java/com/example/UserService.java\n");

@@ -74,7 +74,6 @@ public class GeminiService implements LlmProvider {
                                 })
                 )
                 .bodyToFlux(String.class)
-                //.doOnNext(line -> log.debug("RAW FROM GEMINI: [{}]", line)) // DEBUG
                 .filter(line -> !line.isBlank())
                 .flatMap(this::extractTextDelta)
                 .doOnError(e -> log.error("Gemini streaming error: {}", e.getMessage()))
@@ -82,10 +81,8 @@ public class GeminiService implements LlmProvider {
     }
 
     private Flux<String> extractTextDelta(String data) {
-        // log.debug("RAW GEMINI CHUNK: [{}]", data);
         try {
             JsonNode root = mapper.readTree(data);
-            // log.debug("PARSED JSON: {}", root.toPrettyString());
             JsonNode candidates = root.path("candidates");
 
             if (candidates.isArray() && !candidates.isEmpty()) {
@@ -118,17 +115,11 @@ public class GeminiService implements LlmProvider {
             ObjectNode systemInstruction = mapper.createObjectNode();
             ArrayNode systemParts = mapper.createArrayNode();
             ObjectNode systemPart = mapper.createObjectNode();
-            systemPart.put("text",
-                    "You are an expert software engineer. " +
-                            "When asked to refactor code, output each affected file preceded by a marker on its own line: ##FILE: <relative/path/to/file>. " +
-                            "If only one file needs changes, output just that one file with its ##FILE: marker. " +
-                            "If the instruction requires changes to multiple files, output all of them with their respective ##FILE: markers. " +
-                            "After all files, add a section starting with ## EXPLANATION followed by a numbered list of changes. " +
-                            "If asked to keep the code intact, output the file as-is with its ##FILE: marker and only generate the explanation. " +
-                            "In the EXPLANATION, list each point as a separate numbered item on its own line. " +
-                            "Never wrap code in markdown fences unless explicitly asked.");
 
+            // Reference the shared prompt from ClaudeService to keep all providers in sync
+            systemPart.put("text", ClaudeService.SYSTEM_PROMPT);
             systemParts.add(systemPart);
+
             systemInstruction.set("parts", systemParts);
             body.set("systemInstruction", systemInstruction);
 

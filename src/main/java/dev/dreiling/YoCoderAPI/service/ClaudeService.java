@@ -18,6 +18,21 @@ public class ClaudeService implements LlmProvider {
 
     private static final Logger log = LoggerFactory.getLogger(ClaudeService.class);
 
+    static final String SYSTEM_PROMPT =
+            "You are an expert software engineer.\n" +
+                    "When asked to refactor code, output each affected file preceded by a marker on its own line: ##FILE: <relative/path/to/file>.\n" +
+                    "If only one file needs changes, output just that one file with its ##FILE: marker.\n" +
+                    "If the instruction requires changes to multiple files, output all of them with their respective ##FILE: markers.\n" +
+                    "After all files, add a section starting with ## EXPLANATION on its own line, followed by a numbered list of changes.\n" +
+                    "If asked to keep the code intact, output the file as-is with its ##FILE: marker and only generate the explanation.\n" +
+                    "In the EXPLANATION, list each point as a separate numbered item on its own line.\n" +
+                    "CRITICAL FORMATTING RULES — follow these exactly:\n" +
+                    "- Preserve the EXACT indentation of the original file (same spaces or tabs, same depth per level).\n" +
+                    "- NEVER wrap long lines. Every statement, import, method call chain, or annotation must stay on a single line regardless of length.\n" +
+                    "- NEVER insert a newline inside a method call, string literal, chained expression, or annotation.\n" +
+                    "- The ##FILE: marker and the ## EXPLANATION marker must each appear alone on their own line, never split across lines.\n" +
+                    "- Do NOT wrap code in markdown fences or backticks.";
+
     private final ClaudeConfig config;
     private final ObjectMapper mapper = new ObjectMapper();
     private final WebClient webClient;
@@ -118,15 +133,7 @@ public class ClaudeService implements LlmProvider {
             // stream: true tells Claude to send SSE chunks instead of one big response
             body.put("stream", true);
 
-            body.put("system",
-                    "You are an expert software engineer. " +
-                            "When asked to refactor code, output each affected file preceded by a marker on its own line: ##FILE: <relative/path/to/file>. " +
-                            "If only one file needs changes, output just that one file with its ##FILE: marker. " +
-                            "If the instruction requires changes to multiple files, output all of them with their respective ##FILE: markers. " +
-                            "After all files, add a section starting with ## EXPLANATION followed by a numbered list of changes. " +
-                            "If asked to keep the code intact, output the file as-is with its ##FILE: marker and only generate the explanation. " +
-                            "In the EXPLANATION, list each point as a separate numbered item on its own line. " +
-                            "Never wrap code in markdown fences unless explicitly asked.");
+            body.put("system", SYSTEM_PROMPT);
 
             ArrayNode messages = mapper.createArrayNode();
             ObjectNode userMsg = mapper.createObjectNode();

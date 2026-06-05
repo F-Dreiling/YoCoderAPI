@@ -24,7 +24,7 @@ public class RefactorService {
 
     public Flux<String> streamRefactor(RefactorRequest req) {
         return Mono.fromCallable(() -> {
-                    log.info("Building context for: {}", req.getTargetFile());
+                    log.info("Building context for: {}", req.getTargetFilePath());
                     ContextService.BuiltContext ctx = contextService.buildContext(req);
                     log.info("Prompt ready: {} chars, {} files in context", ctx.promptCharCount, ctx.filesUsed.size());
                     return ctx;

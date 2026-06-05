@@ -1,97 +1,79 @@
 package dev.dreiling.YoCoderAPI.service;
 
-import dev.dreiling.YoCoderAPI.model.ProjectFile;
 import dev.dreiling.YoCoderAPI.model.RefactorRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
-/**
- * Builds the LLM prompt from the target file and any context files
- * explicitly selected by the user on the frontend.
- */
 @Service
 public class ContextService {
 
     private static final Logger log = LoggerFactory.getLogger(ContextService.class);
 
-    private final FileService fileService;
-
-    public ContextService(FileService fileService) {
-        this.fileService = fileService;
-    }
-
     public BuiltContext buildContext(RefactorRequest req) {
 
-        // 1. Read target file
-        String targetContent;
-        try {
-            targetContent = fileService.readFileContent(req.getProjectRoot(), req.getTargetFile());
-        } catch (Exception e) {
-            throw new RuntimeException("Cannot read target file '" + req.getTargetFile() + "': " + e.getMessage(), e);
-        }
+        Map<String, String> contextContents = req.getContextFileContents();
+        int contextCount = contextContents != null ? contextContents.size() : 0;
+        log.info("Building prompt for: {} with {} context file(s)", req.getTargetFilePath(), contextCount);
 
-        // 2. Load user-selected context files (if any)
-        List<ProjectFile> contextFiles = new ArrayList<>();
-        List<String> selected = req.getContextFiles();
-        if (selected != null && !selected.isEmpty()) {
-            contextFiles = fileService.readFiles(req.getProjectRoot(), selected);
-            log.info("Loaded {} user-selected context file(s)", contextFiles.size());
-        }
+        String prompt = assemblePrompt(req);
 
-        // 3. Assemble prompt
-        String prompt = assemblePrompt(req, targetContent, contextFiles);
+        List<String> filesUsed = contextContents != null
+                ? List.copyOf(contextContents.keySet())
+                : List.of();
 
-        List<String> usedPaths = contextFiles.stream()
-                .map(ProjectFile::getRelativePath)
-                .collect(Collectors.toList());
-        usedPaths.add(0, req.getTargetFile());
-
-        return new BuiltContext(prompt, usedPaths, prompt.length());
+        return new BuiltContext(prompt, filesUsed, prompt.length());
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Prompt Assembly
     // ─────────────────────────────────────────────────────────────────────────
 
-    private String assemblePrompt(RefactorRequest req, String targetContent, List<ProjectFile> contextFiles) {
-
+    private String assemblePrompt(RefactorRequest req) {
         StringBuilder sb = new StringBuilder();
 
         sb.append("You are an expert software engineer helping with a code task.\n\n");
 
         // Context files
-        if (!contextFiles.isEmpty()) {
+        Map<String, String> ctx = req.getContextFileContents();
+        if (ctx != null && !ctx.isEmpty()) {
             sb.append("## CONTEXT FILES (for reference only — do NOT modify these)\n\n");
-            for (ProjectFile pf : contextFiles) {
-                sb.append("### ").append(pf.getRelativePath());
-                if (pf.isTruncated()) sb.append(" [truncated]");
-                sb.append("\n```").append(extToLang(pf.getExtension())).append("\n");
-                sb.append(pf.getContent()).append("\n```\n\n");
+            for (Map.Entry<String, String> entry : ctx.entrySet()) {
+                String path = entry.getKey();
+                String content = entry.getValue();
+                sb.append("### ").append(path).append("\n");
+                sb.append("```").append(extToLang(getExtension(path))).append("\n");
+                sb.append(content).append("\n```\n\n");
             }
         }
 
         // Target file
-        sb.append("## TARGET FILE: `").append(req.getTargetFile()).append("`\n");
-        sb.append("```").append(extToLang(fileService.getExtension(req.getTargetFile()))).append("\n");
-        sb.append(targetContent).append("\n```\n\n");
+        String targetPath = req.getTargetFilePath();
+        sb.append("## TARGET FILE: `").append(targetPath).append("`\n");
+        sb.append("```").append(extToLang(getExtension(targetPath))).append("\n");
+        sb.append(req.getTargetFileContent()).append("\n```\n\n");
 
         // Task
         sb.append("## TASK\n");
         sb.append(req.getPrompt()).append("\n\n");
 
-        sb.append("Respond naturally. When you need to show changed or new code for a file, ");
-        sb.append("precede each code block with a marker on its own line: `##FILE: <relative/path/to/file>` ");
-        sb.append("followed immediately by the code (no markdown fences). ");
-        sb.append("You may output as much or as little code as the task requires — ");
-        sb.append("a full file, a single method, or just a snippet. ");
-        sb.append("If multiple files need changes, use a ##FILE: marker for each.");
+        sb.append("Respond naturally. When showing code that belongs to a file, wrap it with markers on their own lines:\n");
+        sb.append("##FILE: <relative/path/to/file>\n");
+        sb.append("<code — no markdown fences>\n");
+        sb.append("##ENDFILE\n");
+        sb.append("You may output a full file, a single method, or just a snippet — whatever the task requires. ");
+        sb.append("Use one ##FILE:/##ENDFILE pair per file. All explanation and commentary must go outside these markers.");
 
         return sb.toString();
+    }
+
+    private String getExtension(String path) {
+        if (path == null) return "";
+        int dot = path.lastIndexOf('.');
+        return dot >= 0 ? path.substring(dot).toLowerCase() : "";
     }
 
     private String extToLang(String ext) {

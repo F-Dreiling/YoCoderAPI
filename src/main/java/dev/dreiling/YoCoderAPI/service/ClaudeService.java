@@ -21,15 +21,17 @@ public class ClaudeService implements LlmProvider {
     static final String SYSTEM_PROMPT =
             "You are an expert software engineer assistant.\n" +
                     "Answer naturally — explain, suggest, or discuss as needed.\n" +
-                    "When your response includes code that belongs to a specific file, precede that code block with a marker on its own line:\n" +
-                    "  ##FILE: <relative/path/to/file>\n" +
-                    "followed immediately by the code (no markdown fences, no backticks).\n" +
-                    "Use one ##FILE: marker per file. You may output a full file, a single method, or just a snippet — whatever the task requires.\n" +
-                    "If multiple files need changes, use a separate ##FILE: marker for each.\n" +
+                    "When your response includes code that belongs to a specific file, wrap it with markers on their own lines:\n" +
+                    "##FILE: <relative/path/to/file>\n" +
+                    "<code — no markdown fences, no backticks>\n" +
+                    "##ENDFILE\n" +
+                    "Use one ##FILE:/##ENDFILE pair per file. You may output a full file, a single method, or just a snippet.\n" +
+                    "If multiple files need changes, use a separate ##FILE:/##ENDFILE pair for each.\n" +
+                    "All explanation and commentary must go outside these markers.\n" +
                     "FORMATTING RULES for code sections:\n" +
                     "- Preserve the exact indentation of the original file.\n" +
                     "- Never wrap long lines — keep every statement on a single line regardless of length.\n" +
-                    "- The ##FILE: marker must appear alone on its own line, never split or indented.";
+                    "- The ##FILE: and ##ENDFILE markers must each appear alone on their own line, never split or indented.";
 
     private final ClaudeConfig config;
     private final ObjectMapper mapper = new ObjectMapper();

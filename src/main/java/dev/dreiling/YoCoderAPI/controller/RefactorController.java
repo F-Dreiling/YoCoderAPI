@@ -1,8 +1,6 @@
 package dev.dreiling.YoCoderAPI.controller;
 
-import dev.dreiling.YoCoderAPI.model.ProjectScanResult;
 import dev.dreiling.YoCoderAPI.model.RefactorRequest;
-import dev.dreiling.YoCoderAPI.service.FileService;
 import dev.dreiling.YoCoderAPI.service.RefactorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,11 +19,9 @@ public class RefactorController {
     private static final Logger log = LoggerFactory.getLogger(RefactorController.class);
 
     private final RefactorService refactorService;
-    private final FileService fileService;
 
-    public RefactorController(RefactorService refactorService, FileService fileService) {
+    public RefactorController(RefactorService refactorService) {
         this.refactorService = refactorService;
-        this.fileService = fileService;
     }
 
     @GetMapping("/health")
@@ -33,40 +29,22 @@ public class RefactorController {
         return Mono.just(Map.of(
                 "status", "UP",
                 "service", "YoCoderAPI",
-                "version", "1.2"
+                "version", "2.0"
         ));
     }
 
-    @PostMapping("/project/scan")
-    public Mono<ProjectScanResult> scanProject(@RequestBody Map<String, String> body) {
-        String projectRoot = body.get("projectRoot");
-        if (projectRoot == null || projectRoot.isBlank()) {
-            return Mono.just(ProjectScanResult.error("Missing 'projectRoot'"));
-        }
-        return Mono.fromCallable(() -> fileService.scanProject(projectRoot))
-                .subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic());
-    }
-
-    @GetMapping("/project/file")
-    public Mono<Map<String, String>> readFile(@RequestParam String projectRoot, @RequestParam String filePath) {
-        return Mono.fromCallable(() -> {
-            String content = fileService.readFileContent(projectRoot, filePath);
-            return Map.of("content", content, "path", filePath);
-        }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic());
-    }
-
-    @PostMapping(value = "/refactor/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PostMapping(value = "/refactor", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> streamRefactor(@RequestBody RefactorRequest req) {
-        if (req.getProjectRoot() == null || req.getTargetFile() == null || req.getPrompt() == null) {
+        if (req.getTargetFilePath() == null || req.getTargetFileContent() == null || req.getPrompt() == null) {
             return Flux.just(ServerSentEvent.<String>builder()
                     .event("error")
-                    .data("[ERROR] Missing projectRoot, targetFile, or prompt")
+                    .data("[ERROR] Missing targetFilePath, targetFileContent, or prompt")
                     .build());
         }
 
-        log.info("Stream refactor: project={} file={} provider={} contextFiles={}",
-                req.getProjectRoot(), req.getTargetFile(), req.getProviderOverride(),
-                req.getContextFiles() != null ? req.getContextFiles().size() : 0);
+        log.info("Stream refactor: file={} provider={} contextFiles={}",
+                req.getTargetFilePath(), req.getProviderOverride(),
+                req.getContextFileContents() != null ? req.getContextFileContents().size() : 0);
 
         return refactorService.streamRefactor(req)
                 .map(chunk -> ServerSentEvent.<String>builder()

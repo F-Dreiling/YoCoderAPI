@@ -19,19 +19,17 @@ public class ClaudeService implements LlmProvider {
     private static final Logger log = LoggerFactory.getLogger(ClaudeService.class);
 
     static final String SYSTEM_PROMPT =
-            "You are an expert software engineer.\n" +
-                    "When asked to refactor code, output each affected file preceded by a marker on its own line: ##FILE: <relative/path/to/file>.\n" +
-                    "If only one file needs changes, output just that one file with its ##FILE: marker.\n" +
-                    "If the instruction requires changes to multiple files, output all of them with their respective ##FILE: markers.\n" +
-                    "After all files, add a section starting with ## EXPLANATION on its own line, followed by a numbered list of changes.\n" +
-                    "If asked to keep the code intact, output the file as-is with its ##FILE: marker and only generate the explanation.\n" +
-                    "In the EXPLANATION, list each point as a separate numbered item on its own line.\n" +
-                    "CRITICAL FORMATTING RULES — follow these exactly:\n" +
-                    "- Preserve the EXACT indentation of the original file (same spaces or tabs, same depth per level).\n" +
-                    "- NEVER wrap long lines. Every statement, import, method call chain, or annotation must stay on a single line regardless of length.\n" +
-                    "- NEVER insert a newline inside a method call, string literal, chained expression, or annotation.\n" +
-                    "- The ##FILE: marker and the ## EXPLANATION marker must each appear alone on their own line, never split across lines.\n" +
-                    "- Do NOT wrap code in markdown fences or backticks.";
+            "You are an expert software engineer assistant.\n" +
+                    "Answer naturally — explain, suggest, or discuss as needed.\n" +
+                    "When your response includes code that belongs to a specific file, precede that code block with a marker on its own line:\n" +
+                    "  ##FILE: <relative/path/to/file>\n" +
+                    "followed immediately by the code (no markdown fences, no backticks).\n" +
+                    "Use one ##FILE: marker per file. You may output a full file, a single method, or just a snippet — whatever the task requires.\n" +
+                    "If multiple files need changes, use a separate ##FILE: marker for each.\n" +
+                    "FORMATTING RULES for code sections:\n" +
+                    "- Preserve the exact indentation of the original file.\n" +
+                    "- Never wrap long lines — keep every statement on a single line regardless of length.\n" +
+                    "- The ##FILE: marker must appear alone on its own line, never split or indented.";
 
     private final ClaudeConfig config;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -98,7 +96,6 @@ public class ClaudeService implements LlmProvider {
             JsonNode root = mapper.readTree(data);
             String type = root.path("type").asText();
 
-            // We only want content_block_delta events with text_delta type
             if ("content_block_delta".equals(type)) {
                 JsonNode delta = root.path("delta");
                 if ("text_delta".equals(delta.path("type").asText())) {
@@ -109,7 +106,6 @@ public class ClaudeService implements LlmProvider {
                 }
             }
 
-            // Log usage stats from message_delta (end of stream)
             if ("message_delta".equals(type)) {
                 JsonNode usage = root.path("usage");
                 if (!usage.isMissingNode()) {
@@ -121,7 +117,6 @@ public class ClaudeService implements LlmProvider {
             log.debug("Could not parse SSE chunk: {}", data);
         }
 
-        // Return empty for events we don't care about — flatMap drops these
         return Flux.empty();
     }
 
@@ -130,9 +125,7 @@ public class ClaudeService implements LlmProvider {
             ObjectNode body = mapper.createObjectNode();
             body.put("model", config.getModel());
             body.put("max_tokens", config.getMaxTokens());
-            // stream: true tells Claude to send SSE chunks instead of one big response
             body.put("stream", true);
-
             body.put("system", SYSTEM_PROMPT);
 
             ArrayNode messages = mapper.createArrayNode();

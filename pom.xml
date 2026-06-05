@@ -14,7 +14,7 @@
 
 	<groupId>dev.dreiling</groupId>
 	<artifactId>yocoderapi</artifactId>
-	<version>1.1</version>
+	<version>1.2</version>
 	<name>YoCoderAPI</name>
 	<description>AI-powered code refactoring backend with full project context awareness</description>
 

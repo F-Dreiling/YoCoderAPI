@@ -2,7 +2,6 @@ package dev.dreiling.YoCoderAPI.controller;
 
 import dev.dreiling.YoCoderAPI.model.ProjectScanResult;
 import dev.dreiling.YoCoderAPI.model.RefactorRequest;
-import dev.dreiling.YoCoderAPI.model.RefactorResponse;
 import dev.dreiling.YoCoderAPI.service.FileService;
 import dev.dreiling.YoCoderAPI.service.RefactorService;
 import org.slf4j.Logger;
@@ -29,32 +28,24 @@ public class RefactorController {
         this.fileService = fileService;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-
     @GetMapping("/health")
     public Mono<Map<String, String>> health() {
         return Mono.just(Map.of(
                 "status", "UP",
                 "service", "YoCoderAPI",
-                "version", "1.1"
+                "version", "1.2"
         ));
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     @PostMapping("/project/scan")
     public Mono<ProjectScanResult> scanProject(@RequestBody Map<String, String> body) {
         String projectRoot = body.get("projectRoot");
-
         if (projectRoot == null || projectRoot.isBlank()) {
             return Mono.just(ProjectScanResult.error("Missing 'projectRoot'"));
         }
-
         return Mono.fromCallable(() -> fileService.scanProject(projectRoot))
                 .subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic());
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     @GetMapping("/project/file")
     public Mono<Map<String, String>> readFile(@RequestParam String projectRoot, @RequestParam String filePath) {
@@ -63,8 +54,6 @@ public class RefactorController {
             return Map.of("content", content, "path", filePath);
         }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic());
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     @PostMapping(value = "/refactor/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> streamRefactor(@RequestBody RefactorRequest req) {
@@ -75,11 +64,11 @@ public class RefactorController {
                     .build());
         }
 
-        log.info("Stream refactor: project={} file={} provider={}",
-                req.getProjectRoot(), req.getTargetFile(), req.getProviderOverride());
+        log.info("Stream refactor: project={} file={} provider={} contextFiles={}",
+                req.getProjectRoot(), req.getTargetFile(), req.getProviderOverride(),
+                req.getContextFiles() != null ? req.getContextFiles().size() : 0);
 
         return refactorService.streamRefactor(req)
-                // .doOnNext(chunk -> log.debug("Emitting chunk: [{}]", chunk.substring(0, Math.min(50, chunk.length()))))
                 .map(chunk -> ServerSentEvent.<String>builder()
                         .event("chunk")
                         .data(chunk)
@@ -95,20 +84,5 @@ public class RefactorController {
                             .data("[ERROR] " + e.getMessage())
                             .build());
                 });
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-
-    @PostMapping("/refactor/save")
-    public Mono<RefactorResponse> saveFile(@RequestBody Map<String, String> body) {
-        String projectRoot = body.get("projectRoot");
-        String filePath    = body.get("filePath");
-        String content     = body.get("content");
-
-        if (projectRoot == null || filePath == null || content == null) {
-            return Mono.just(RefactorResponse.error("Missing projectRoot, filePath, or content"));
-        }
-
-        return refactorService.saveRefactoredFile(projectRoot, filePath, content);
     }
 }

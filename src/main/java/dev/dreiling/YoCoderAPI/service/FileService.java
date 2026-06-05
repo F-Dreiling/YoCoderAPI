@@ -148,26 +148,6 @@ public class FileService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  File Writing
-    // ─────────────────────────────────────────────────────────────────────────
-
-    public void saveRefactoredFile(String projectRootPath, String relativePath, String newContent) throws IOException {
-        Path root = Path.of(projectRootPath).normalize();
-        Path target = safeResolve(root, relativePath);
-        if (target == null) throw new IllegalArgumentException("Invalid path: " + relativePath);
-
-        // Create backup
-        Path backup = target.resolveSibling(target.getFileName() + ".bak");
-        if (Files.exists(target)) {
-            Files.copy(target, backup, StandardCopyOption.REPLACE_EXISTING);
-            log.info("Backup created: {}", backup);
-        }
-
-        Files.writeString(target, newContent, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
-        log.info("Saved refactored file: {}", target);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
     //  Helpers
     // ─────────────────────────────────────────────────────────────────────────
 

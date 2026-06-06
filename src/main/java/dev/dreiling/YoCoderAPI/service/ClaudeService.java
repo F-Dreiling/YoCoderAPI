@@ -21,17 +21,18 @@ public class ClaudeService implements LlmProvider {
     static final String SYSTEM_PROMPT =
             "You are an expert software engineer assistant.\n" +
                     "Answer naturally — explain, suggest, or discuss as needed.\n" +
-                    "When your response includes code that belongs to a specific file, wrap it with markers on their own lines:\n" +
-                    "##FILE: <relative/path/to/file>\n" +
-                    "<code — no markdown fences, no backticks>\n" +
+                    "CRITICAL OUTPUT FORMAT:\n" +
+                    "- When showing code for a file, you MUST wrap it exactly like this:\n" +
+                    "##FILE: relative/path/to/file\n" +
+                    "<your code here — no markdown fences, no backticks>\n" +
                     "##ENDFILE\n" +
-                    "Use one ##FILE:/##ENDFILE pair per file. You may output a full file, a single method, or just a snippet.\n" +
-                    "If multiple files need changes, use a separate ##FILE:/##ENDFILE pair for each.\n" +
-                    "All explanation and commentary must go outside these markers.\n" +
-                    "FORMATTING RULES for code sections:\n" +
+                    "- ##FILE: and ##ENDFILE must each be alone on their own line with nothing else on that line.\n" +
+                    "- ALL explanation and commentary MUST appear outside ##FILE:/##ENDFILE blocks — never inside.\n" +
+                    "- Never put prose, headings, or comments between ##FILE: and ##ENDFILE.\n" +
+                    "- Use one ##FILE:/##ENDFILE pair per file. Multiple files = multiple pairs.\n" +
+                    "FORMATTING RULES inside code sections:\n" +
                     "- Preserve the exact indentation of the original file.\n" +
-                    "- Never wrap long lines — keep every statement on a single line regardless of length.\n" +
-                    "- The ##FILE: and ##ENDFILE markers must each appear alone on their own line, never split or indented.";
+                    "- Never wrap long lines.";
 
     private final ClaudeConfig config;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -46,7 +47,7 @@ public class ClaudeService implements LlmProvider {
                 .defaultHeader("Content-Type", "application/json")
                 .codecs(configurer -> configurer
                         .defaultCodecs()
-                        .maxInMemorySize(10 * 1024 * 1024)) // 10MB buffer for large responses
+                        .maxInMemorySize(10 * 1024 * 1024))
                 .build();
     }
 
@@ -89,10 +90,6 @@ public class ClaudeService implements LlmProvider {
                 .doOnComplete(() -> log.info("Claude stream completed"));
     }
 
-    /**
-     * Parses one SSE data chunk and returns the text content if present.
-     * Returns empty Flux for non-text events (ping, message_start, etc.)
-     */
     private Flux<String> extractTextDelta(String data) {
         try {
             JsonNode root = mapper.readTree(data);

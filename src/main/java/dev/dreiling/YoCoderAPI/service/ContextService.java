@@ -60,12 +60,17 @@ public class ContextService {
         sb.append("## TASK\n");
         sb.append(req.getPrompt()).append("\n\n");
 
-        sb.append("Respond naturally. When showing code that belongs to a file, wrap it with markers on their own lines:\n");
-        sb.append("##FILE: <relative/path/to/file>\n");
-        sb.append("<code — no markdown fences>\n");
+        sb.append("CRITICAL OUTPUT FORMAT:\n");
+        sb.append("- Respond naturally with explanation in plain text.\n");
+        sb.append("- When showing code for a file, you MUST wrap it exactly like this:\n");
+        sb.append("##FILE: relative/path/to/file\n");
+        sb.append("<your code here — no markdown fences, no backticks>\n");
         sb.append("##ENDFILE\n");
-        sb.append("You may output a full file, a single method, or just a snippet — whatever the task requires. ");
-        sb.append("Use one ##FILE:/##ENDFILE pair per file. All explanation and commentary must go outside these markers.");
+        sb.append("- ##FILE: and ##ENDFILE must each be on their own line, alone, with nothing else on that line.\n");
+        sb.append("- ALL explanation and commentary MUST appear outside ##FILE:/##ENDFILE blocks.\n");
+        sb.append("- Never put prose, comments, or headings inside a ##FILE:/##ENDFILE block.\n");
+        sb.append("- You may output a full file, a single method, or just a snippet — whatever the task requires.\n");
+        sb.append("- If multiple files need changes, use a separate ##FILE:/##ENDFILE pair for each.");
 
         return sb.toString();
     }
